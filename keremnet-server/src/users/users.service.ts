@@ -13,8 +13,6 @@ export interface User {
 @Injectable()
 export class UsersService {
   private users: User[] = [
-    { uid: '1', username: 'koral', profilePicFileName: 'koral.png' },
-    { uid: '2', username: 'eden', profilePicFileName: 'eden.jpg' },
   ];
 
   getUsers() {

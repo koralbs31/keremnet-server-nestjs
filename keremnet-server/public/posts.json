@@ -1,0 +1,23 @@
+[
+  {
+    "id": "1",
+    "title": "first post",
+    "author": "Admin",
+    "publishedAt": "2024-06-01",
+    "content": "This is the first post."
+  },
+  {
+    "id": "2",
+    "title": "second post",
+    "author": "koral steinberg",
+    "publishedAt": "2025-06-02",
+    "content": "first hanich post."
+  },
+  {
+    "id": "3",
+    "title": "third post",
+    "author": "Ran",
+    "publishedAt": "2025-06-03",
+    "content": "Second hanich post"
+  }
+]

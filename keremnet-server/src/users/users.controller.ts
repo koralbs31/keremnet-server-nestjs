@@ -40,7 +40,7 @@ export class UsersController {
   @Post('register')
   async register(
     @Body()
-    body: { username: string; email: string; password: string },
+    body: { username: string; email: string; password: string; },
   ): Promise<{ success: boolean; message: string; user: UserResponse }> {
     const { username, email, password } = body;
 

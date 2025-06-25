@@ -1,98 +1,70 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
+import { CreateOrUpdatePostDto } from './post.dto';
+import * as fs from 'fs';
+import * as path from 'path';
 
-export interface PostBody {
-  id?: string;
-  title: string;
-  author: string;
-  publishedAt?: string;
-  content: string;
+export interface Post extends CreateOrUpdatePostDto {
+  id: string;
+  publishedAt: string;
 }
 
 @Injectable()
 export class PostsService {
-  private posts: PostBody[] = [
-    {
-      id: '1',
-      title: 'first post',
-      author: 'Admin',
-      publishedAt: '2024-06-01',
-      content: 'This is the first post.',
-    },
-    {
-      id: '2',
-      title: 'second post',
-      author: 'koral steinberg',
-      publishedAt: '2025-06-02',
-      content: 'first hanich post.',
-    },
-    {
-      id: '3',
-      title: 'third post',
-      author: 'Ran',
-      publishedAt: '2025-06-03',
-      content: 'Second hanich post',
-    },
-    {
-      id: '4',
-      title: 'forth post',
-      author: 'Eden',
-      publishedAt: '2025-06-08',
-      content: 'third hanich post',
-    },
-    {
-      id: '5',
-      title: 'forth post',
-      author: 'Eden',
-      publishedAt: '2025-06-08',
-      content: 'third hanich post',
-    },
-  ];
+  private posts: Post[] = [];
 
-  getPosts(): PostBody[] {
+  constructor() {
+    this.loadPostsFromJson();
+  }
+
+  private loadPostsFromJson() {
+    const filePath = path.join(__dirname, '..', '..', 'public', 'posts.json');
+    const data = fs.readFileSync(filePath, 'utf-8');
+    this.posts = JSON.parse(data);
+  }
+
+  getPosts(): Post[] {
     return this.posts;
   }
 
-  getPostById(id: string): PostBody {
+  getPostById(id: string): Post {
     const post = this.posts.find((p) => p.id === id);
     if (!post) throw new NotFoundException('Post not found');
     return post;
   }
 
-  addPost(body: PostBody): PostBody {
-    const newPost: PostBody = {
+  addPost(body: CreateOrUpdatePostDto): Post {
+    const newPost: Post = {
       id: uuidv4(),
       title: body.title,
       author: body.author,
-      publishedAt: new Date().toISOString(),
       content: body.content,
+      publishedAt: new Date().toISOString(),
     };
     this.posts.push(newPost);
     return newPost;
   }
 
-  deletePost(author: string, title: string) {
-    const index = this.posts.findIndex(
-      (p) => p.author === author && p.title === title,
-    );
+  deletePost(id: string) {
+    const index = this.posts.findIndex((p) => p.id === id);
     if (index === -1) throw new NotFoundException('Post not found');
 
     this.posts.splice(index, 1);
-    return { message: 'Post deleted successfully', posts: this.posts };
+    return { message: 'Post deleted successfully' };
   }
 
-  updatePost(author: string, title: string, body: PostBody): PostBody {
-    const index = this.posts.findIndex(
-      (p) => p.author === author && p.title === title,
-    );
+  updatePost(id: string, body: CreateOrUpdatePostDto): Post {
+    const index = this.posts.findIndex((p) => p.id === id);
     if (index === -1) throw new NotFoundException('Post not found');
 
-    this.posts[index] = {
+    const updatedPost: Post = {
       ...this.posts[index],
       ...body,
-      id: this.posts[index].id,
-      publishedAt: this.posts[index].publishedAt,
     };
-    return this.posts[index];
+
+    this.posts[index] = updatedPost;
+    return updatedPost;
   }
 }
