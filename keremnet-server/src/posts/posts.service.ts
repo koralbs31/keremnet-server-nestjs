@@ -13,7 +13,7 @@ export interface Post extends CreateOrUpdatePostDto {
 
 @Injectable()
 export class PostsService {
-  private posts: Post[] = [];
+  private postsMap: Map<string, Post> = new Map();
 
   constructor() {
     this.loadPostsFromJson();
@@ -22,15 +22,18 @@ export class PostsService {
   private loadPostsFromJson() {
     const filePath = path.join(__dirname, '..', '..', 'public', 'posts.json');
     const data = fs.readFileSync(filePath, 'utf-8');
-    this.posts = JSON.parse(data);
+    const posts: Post[] = JSON.parse(data);
+    for (const post of posts) {
+      this.postsMap.set(post.id, post);
+    }
   }
 
   getPosts(): Post[] {
-    return this.posts;
+    return Array.from(this.postsMap.values());
   }
 
   getPostById(id: string): Post {
-    const post = this.posts.find((p) => p.id === id);
+    const post = this.postsMap.get(id);
     if (!post) throw new NotFoundException('Post not found');
     return post;
   }
@@ -43,28 +46,31 @@ export class PostsService {
       content: body.content,
       publishedAt: new Date().toISOString(),
     };
-    this.posts.push(newPost);
+    this.postsMap.set(newPost.id, newPost);
     return newPost;
   }
 
   deletePost(id: string) {
-    const index = this.posts.findIndex((p) => p.id === id);
-    if (index === -1) throw new NotFoundException('Post not found');
+    const exists = this.postsMap.has(id);
+    if (!exists) throw new NotFoundException('Post not found');
 
-    this.posts.splice(index, 1);
-    return { message: 'Post deleted successfully' };
+    this.postsMap.delete(id);
+    return {
+      message: 'Post deleted successfully',
+      posts: this.getPosts(),
+    };
   }
 
   updatePost(id: string, body: CreateOrUpdatePostDto): Post {
-    const index = this.posts.findIndex((p) => p.id === id);
-    if (index === -1) throw new NotFoundException('Post not found');
+    const existing = this.postsMap.get(id);
+    if (!existing) throw new NotFoundException('Post not found');
 
     const updatedPost: Post = {
-      ...this.posts[index],
+      ...existing,
       ...body,
     };
 
-    this.posts[index] = updatedPost;
+    this.postsMap.set(id, updatedPost);
     return updatedPost;
   }
 }

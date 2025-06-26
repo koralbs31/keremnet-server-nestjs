@@ -15,14 +15,14 @@ export interface User {
 
 @Injectable()
 export class UsersService {
-  private users: User[] = [];
+  private usersMap: Map<string, User> = new Map();
 
-  getUsers() {
-    return this.users;
+  getUsers(): User[] {
+    return Array.from(this.usersMap.values());
   }
 
   getUserByUid(uid: string): User {
-    const user = this.users.find((u) => u.uid === uid);
+    const user = this.usersMap.get(uid);
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
@@ -32,11 +32,12 @@ export class UsersService {
     if (updateData.username) user.username = updateData.username;
     if (updateData.profilePicFileName)
       user.profilePicFileName = updateData.profilePicFileName;
+    this.usersMap.set(uid, user);
     return user;
   }
 
   findUserByEmail(email: string): User | undefined {
-    return this.users.find((user) => user.email === email);
+    return Array.from(this.usersMap.values()).find((user) => user.email === email);
   }
 
   async addUser(userData: CreateUserDto): Promise<User> {
@@ -45,15 +46,17 @@ export class UsersService {
     }
 
     const hashedPassword = await bcrypt.hash(userData.password, 10);
+    const uid = Date.now().toString();
 
     const newUser: User = {
-      uid: Date.now().toString(),
+      uid,
       username: userData.username,
       email: userData.email,
       password: hashedPassword,
       profilePicFileName: 'default.png',
     };
-    this.users.push(newUser);
+
+    this.usersMap.set(uid, newUser);
     return newUser;
   }
 

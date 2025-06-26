@@ -7,6 +7,8 @@ import { UsersService } from './users.service';
 import {Test} from '@nestjs/testing'
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
+const testEmail:string = 'test@gmail.com';
+
 describe('UsersService', () => {
   let service: UsersService;
 
@@ -26,13 +28,13 @@ describe('UsersService', () => {
     it('should add a new user', async () => {
       const user = await service.addUser({
         username: 'test',
-        email: 'test@gmail.com',
+        email: testEmail,
         password: 'password123',
       });
 
       expect(user).toHaveProperty('uid');
       expect(user.username).toBe('test');
-      expect(user.email).toBe('test@gmail.com');
+      expect(user.email).toBe(testEmail);
       expect(user.password).not.toBe('password123');
       expect(service.getUsers()).toHaveLength(1);
     });
@@ -40,14 +42,14 @@ describe('UsersService', () => {
     it('should throw if user email already exists', async () => {
       await service.addUser({
         username: 'test',
-        email: 'test@gmail.com',
+        email: testEmail,
         password: 'pass',
       });
 
       await expect(
         service.addUser({
           username: 'test',
-          email: 'test@gmail.com',
+          email: testEmail,
           password: 'another',
         }),
       ).rejects.toThrow(BadRequestException);
@@ -58,29 +60,29 @@ describe('UsersService', () => {
     it('should validate a user with correct password', async () => {
       const user = await service.addUser({
         username: 'ran',
-        email: 'ran@gmail.com',
+        email: testEmail,
         password: 'secret',
       });
 
-      const validatedUser = await service.validateUser('ran@gmail.com', 'secret');
+      const validatedUser = await service.validateUser(testEmail, 'secret');
       expect(validatedUser.uid).toBe(user.uid);
     });
 
     it('should throw for invalid email', async () => {
       await expect(
-        service.validateUser('eden@gmail.com', 'test'),
+        service.validateUser('nontest@gmail.com', 'test'),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw for incorrect password', async () => {
       await service.addUser({
         username: 'lazer',
-        email: 'lazer@gmail.com',
+        email: 'testEmail',
         password: 'goodpass',
       });
 
       await expect(
-        service.validateUser('lazer@gmail.com', 'wrongpass'),
+        service.validateUser('testEmail', 'wrongpass'),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -89,12 +91,12 @@ describe('UsersService', () => {
     it('should return user by uid', async () => {
       const user = await service.addUser({
         username: 'uidy',
-        email: 'uidy@gmail.com',
+        email: testEmail,
         password: '123',
       });
 
       const fetched = service.getUserByUid(user.uid);
-      expect(fetched.email).toBe('uidy@gmail.com');
+      expect(fetched.email).toBe(testEmail);
     });
 
     it('should throw if uid not found', () => {
@@ -106,7 +108,7 @@ describe('UsersService', () => {
     it('should update username and profilePicFileName', async () => {
       const user = await service.addUser({
         username: 'old',
-        email: 'up@gmail.com',
+        email: testEmail,
         password: 'pass',
       });
 
