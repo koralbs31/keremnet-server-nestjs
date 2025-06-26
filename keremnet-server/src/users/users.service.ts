@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable prettier/prettier */
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { CreateUserDto, UpdateUserDto } from './users.dto';
 
 export interface User {
   uid: string;
@@ -12,8 +15,7 @@ export interface User {
 
 @Injectable()
 export class UsersService {
-  private users: User[] = [
-  ];
+  private users: User[] = [];
 
   getUsers() {
     return this.users;
@@ -25,7 +27,7 @@ export class UsersService {
     return user;
   }
 
-  updateUser(uid: string, updateData: Partial<Omit<User, 'uid'>>) {
+  updateUser(uid: string, updateData: UpdateUserDto): User {
     const user = this.getUserByUid(uid);
     if (updateData.username) user.username = updateData.username;
     if (updateData.profilePicFileName)
@@ -37,11 +39,7 @@ export class UsersService {
     return this.users.find((user) => user.email === email);
   }
 
-  async addUser(userData: {
-    username: string;
-    email: string;
-    password: string;
-  }): Promise<User> {
+  async addUser(userData: CreateUserDto): Promise<User> {
     if (this.findUserByEmail(userData.email)) {
       throw new BadRequestException('User already exists with this email');
     }
