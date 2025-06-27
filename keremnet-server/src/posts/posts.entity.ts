@@ -1,7 +1,16 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable prettier/prettier */
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { User } from '../users/user.entity';
+import { Comment } from '../comments/comment.entity/comment.entity';
+import { Like } from '../likes/like.entity/like.entity';
 
 @Entity('posts')
 export class Post {
@@ -11,12 +20,21 @@ export class Post {
   @Column()
   title: string;
 
-  @Column()
+  @Column('text')
   content: string;
 
-  @Column()
-  publishedAt: string;
+  @CreateDateColumn()
+  publishedAt: Date;
 
-  @ManyToOne(() => User, user => user.posts, { eager: true })
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @ManyToOne(() => User, user => user.posts, { onDelete: 'CASCADE' })
   user: User;
+
+  @OneToMany(() => Comment, comment => comment.post, { cascade: true })
+  comments: Comment[];
+
+  @OneToMany(() => Like, like => like.post, { cascade: true })
+  likes: Like[];
 }

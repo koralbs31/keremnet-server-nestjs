@@ -9,6 +9,10 @@ import { join } from 'path';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './users/user.entity';
 import { Post } from './posts/posts.entity';
+import { CommentsModule } from './comments/comments.module';
+import { LikesModule } from './likes/likes.module';
+import { Comment } from './comments/comment.entity/comment.entity';
+import { Like } from './likes/like.entity/like.entity';
 
 @Module({
   imports: [UsersModule, PostsModule, ServeStaticModule.forRoot({
@@ -25,9 +29,9 @@ import { Post } from './posts/posts.entity';
      username: 'root',
      password: "215100009",
      database: 'myDB',
-     entities: [User, Post],
+     entities: [User, Post, Comment, Like],
      synchronize: true
-  })],
+  }), CommentsModule, LikesModule],
   controllers: [AppController],
   providers: [AppService],
 })

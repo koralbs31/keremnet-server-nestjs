@@ -3,7 +3,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable prettier/prettier */
-/* eslint-disable prettier/prettier */
 import {
   Controller,
   Get,
@@ -26,6 +25,7 @@ interface UserResponse {
   id: string;
   username: string;
   email?: string;
+  profilePicFileName?: string;
 }
 
 @Controller('api/users')
@@ -47,7 +47,7 @@ export class UsersController {
   @Put(':uid')
   async updateUser(
     @Param('uid') uid: string,
-    @Body() updateData: Partial<Omit<UserResponse, 'id'> & { profilePicFileName?: string }>
+    @Body() updateData: Partial<Omit<UserResponse, 'id'>> 
   ) {
     const user = await this.usersService.updateUser(uid, updateData);
     return { user };
@@ -71,16 +71,11 @@ export class UsersController {
   )
   async register(
     @UploadedFile() file: Express.Multer.File,
-    @Body() body: { username: string; email: string; password: string }
+    @Body() body: { username: string; email: string; password: string },
   ): Promise<{
     success: boolean;
     message: string;
-    user: {
-      id: string;
-      username: string;
-      email?: string;
-      profilePicFileName: string;
-    };
+    user: UserResponse;
   }> {
     const { username, email, password } = body;
 
@@ -106,14 +101,14 @@ export class UsersController {
         id: newUser.uid,
         username: newUser.username,
         email: newUser.email,
-        profilePicFileName: newUser.profilePicFileName,
+        profilePicFileName: newUser.profilePicFileName ?? '',
       },
     };
   }
 
   @Post('login')
   async login(
-    @Body() body: { email: string; password: string }
+    @Body() body: { email: string; password: string },
   ): Promise<{ success: boolean; message: string; user: UserResponse }> {
     const { email, password } = body;
 
@@ -130,6 +125,7 @@ export class UsersController {
         id: user.uid,
         username: user.username,
         email: user.email,
+        profilePicFileName: user.profilePicFileName ?? '',
       },
     };
   }
@@ -143,17 +139,16 @@ export class UsersController {
         id: u.uid,
         username: u.username,
         email: u.email,
-        profilePicFileName: u.profilePicFileName,
+        profilePicFileName: u.profilePicFileName ?? '',
       })),
     };
   }
 
   @Post()
   async createUser(
-    @Body() body: { username: string; email: string; password: string }
+    @Body() body: { username: string; email: string; password: string },
   ) {
     const newUser = await this.usersService.addUser(body);
     return { user: newUser };
   }
 }
-
