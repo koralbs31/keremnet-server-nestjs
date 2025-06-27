@@ -9,7 +9,6 @@ import {
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { CreateOrUpdatePostDto } from './post.dto';
-
 @Controller('api/posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
@@ -19,13 +18,18 @@ export class PostsController {
     return this.postsService.getPosts();
   }
 
+  @Get('user/:username')
+  getPostsByUser(@Param('username') username: string) {
+    return this.postsService.getPostsByUsername(username);
+  }
+
   @Get(':id')
   getPostById(@Param('id') id: string) {
     return this.postsService.getPostById(id);
   }
 
   @Post()
-  addPost(@Body() body: CreateOrUpdatePostDto) {
+  addPost(@Body() body: CreateOrUpdatePostDto & { author: string }) {
     return this.postsService.addPost(body);
   }
 

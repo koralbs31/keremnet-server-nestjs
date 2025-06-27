@@ -1,76 +1,70 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable prettier/prettier */
+// /* eslint-disable @typescript-eslint/no-unsafe-call */
+// /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateOrUpdatePostDto } from './post.dto';
-import * as fs from 'fs';
-import * as path from 'path';
-
-export interface Post extends CreateOrUpdatePostDto {
-  id: string;
-  publishedAt: string;
-}
+import { Post } from './posts.entity';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class PostsService {
-  private postsMap: Map<string, Post> = new Map();
+  constructor(
+    @InjectRepository(Post)
+    private readonly postRepo: Repository<Post>,
 
-  constructor() {
-    this.loadPostsFromJson();
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+  ) {}
+
+  async getPosts(): Promise<Post[]> {
+    return this.postRepo.find(); 
   }
 
-  private loadPostsFromJson() {
-    const filePath = path.join(__dirname, '..', '..', 'public', 'posts.json');
-    const data = fs.readFileSync(filePath, 'utf-8');
-    const posts: Post[] = JSON.parse(data);
-    for (const post of posts) {
-      this.postsMap.set(post.id, post);
-    }
-  }
-
-  getPosts(): Post[] {
-    return Array.from(this.postsMap.values());
-  }
-
-  getPostById(id: string): Post {
-    const post = this.postsMap.get(id);
+  async getPostById(id: string): Promise<Post> {
+    const post = await this.postRepo.findOne({ where: { id } });
     if (!post) throw new NotFoundException('Post not found');
     return post;
   }
 
-  addPost(body: CreateOrUpdatePostDto): Post {
-    const newPost: Post = {
-      id: uuidv4(),
+  async addPost(body: CreateOrUpdatePostDto & { author: string }): Promise<Post> {
+    const user = await this.userRepo.findOne({ where: { username: body.author } });
+    if (!user) throw new NotFoundException('Author not found');
+
+    const newPost = this.postRepo.create({
       title: body.title,
-      author: body.author,
       content: body.content,
       publishedAt: new Date().toISOString(),
-    };
-    this.postsMap.set(newPost.id, newPost);
-    return newPost;
+      user,
+    });
+
+    return this.postRepo.save(newPost);
   }
 
-  deletePost(id: string) {
-    const exists = this.postsMap.has(id);
-    if (!exists) throw new NotFoundException('Post not found');
-
-    this.postsMap.delete(id);
-    return {
-      message: 'Post deleted successfully',
-      posts: this.getPosts(),
-    };
+  async deletePost(id: string): Promise<{ message: string }> {
+    const result = await this.postRepo.delete(id);
+    if (result.affected === 0) throw new NotFoundException('Post not found');
+    return { message: 'Post deleted successfully' };
   }
 
-  updatePost(id: string, body: CreateOrUpdatePostDto): Post {
-    const existing = this.postsMap.get(id);
-    if (!existing) throw new NotFoundException('Post not found');
+  async updatePost(id: string, body: CreateOrUpdatePostDto): Promise<Post> {
+    const post = await this.getPostById(id);
 
-    const updatedPost: Post = {
-      ...existing,
-      ...body,
-    };
+    post.title = body.title ?? post.title;
+    post.content = body.content ?? post.content;
 
-    this.postsMap.set(id, updatedPost);
-    return updatedPost;
+    return this.postRepo.save(post);
+  }
+
+  async getPostsByUsername(username: string): Promise<Post[]> {
+    return this.postRepo.find({
+      where: {
+        user: {
+          username,
+        },
+      },
+    });
   }
 }

@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable prettier/prettier */
 /* eslint-disable prettier/prettier */
 import {
   Controller,
@@ -5,10 +10,17 @@ import {
   Post,
   Put,
   Param,
+  UploadedFile,
   Body,
   BadRequestException,
+  UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { join } from 'path';
+import * as fs from 'fs';
+import { diskStorage } from 'multer';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Express } from 'express';
 
 interface UserResponse {
   id: string;
@@ -21,34 +33,71 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  getUsers() {
-    return { users: this.usersService.getUsers() };
+  async getUsers() {
+    const users = await this.usersService.getUsers();
+    return { users };
   }
 
   @Get(':uid')
-  getUserByUid(@Param('uid') uid: string) {
-    const user = this.usersService.getUserByUid(uid);
+  async getUserByUid(@Param('uid') uid: string) {
+    const user = await this.usersService.getUserByUid(uid);
     return { user };
   }
 
   @Put(':uid')
-  updateUser(@Param('uid') uid: string, @Body() updateData: Partial<Omit<UserResponse, 'id'>>) {
-    const user = this.usersService.updateUser(uid, updateData);
+  async updateUser(
+    @Param('uid') uid: string,
+    @Body() updateData: Partial<Omit<UserResponse, 'id'> & { profilePicFileName?: string }>
+  ) {
+    const user = await this.usersService.updateUser(uid, updateData);
     return { user };
   }
 
   @Post('register')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination: (req, file, cb) => {
+          const username = req.body.username;
+          const uploadPath = join(process.cwd(), 'public', 'profile-pics', username);
+          fs.mkdirSync(uploadPath, { recursive: true });
+          cb(null, uploadPath);
+        },
+        filename: (req, file, cb) => {
+          cb(null, 'profile.png');
+        },
+      }),
+    }),
+  )
   async register(
-    @Body()
-    body: { username: string; email: string; password: string; },
-  ): Promise<{ success: boolean; message: string; user: UserResponse }> {
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: { username: string; email: string; password: string }
+  ): Promise<{
+    success: boolean;
+    message: string;
+    user: {
+      id: string;
+      username: string;
+      email?: string;
+      profilePicFileName: string;
+    };
+  }> {
     const { username, email, password } = body;
 
     if (!username || !email || !password) {
       throw new BadRequestException('All fields are required');
     }
 
-    const newUser = await this.usersService.addUser({ username, email, password });
+    const profilePicFileName = file
+      ? `profile-pics/${username}/profile.png`
+      : 'default.png';
+
+    const newUser = await this.usersService.addUser({
+      username,
+      email,
+      password,
+      profilePicFileName,
+    });
 
     return {
       success: true,
@@ -57,14 +106,14 @@ export class UsersController {
         id: newUser.uid,
         username: newUser.username,
         email: newUser.email,
+        profilePicFileName: newUser.profilePicFileName,
       },
     };
   }
 
   @Post('login')
   async login(
-    @Body()
-    body: { email: string; password: string },
+    @Body() body: { email: string; password: string }
   ): Promise<{ success: boolean; message: string; user: UserResponse }> {
     const { email, password } = body;
 
@@ -86,25 +135,25 @@ export class UsersController {
   }
 
   @Get('user-details')
-  getUserDetails() {
-    const users = this.usersService.getUsers().map((u) => ({
-      id: u.uid,
-      username: u.username,
-      email: u.email,
-      profilePicFileName: u.profilePicFileName,
-    }));
+  async getUserDetails() {
+    const users = await this.usersService.getUsers();
     return {
       success: true,
-      users,
+      users: users.map((u) => ({
+        id: u.uid,
+        username: u.username,
+        email: u.email,
+        profilePicFileName: u.profilePicFileName,
+      })),
     };
   }
 
   @Post()
   async createUser(
-    @Body()
-    body: { username: string; email: string; password: string },
+    @Body() body: { username: string; email: string; password: string }
   ) {
     const newUser = await this.usersService.addUser(body);
     return { user: newUser };
   }
 }
+

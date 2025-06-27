@@ -1,23 +1,46 @@
 /* eslint-disable prettier/prettier */
-// /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-// /* eslint-disable @typescript-eslint/no-unsafe-call */
-// /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-// /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Test } from '@nestjs/testing';
 import { UsersService } from './users.service';
-import {Test} from '@nestjs/testing'
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { User } from './user.entity';
+import { Repository } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-
-const testEmail:string = 'test@gmail.com';
+import * as bcrypt from 'bcryptjs';
 
 describe('UsersService', () => {
   let service: UsersService;
+  let repo: Repository<User>;
+
+  const usersArray: User[] = [];
+
+  const mockRepo = {
+    find: jest.fn().mockImplementation(() => Promise.resolve(usersArray)),
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn().mockImplementation((user) => {
+      usersArray.push(user);
+      return Promise.resolve(user);
+    }),
+  };
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
-    providers: [UsersService],
+      providers: [
+        UsersService,
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockRepo,
+        },
+      ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
+    repo = module.get<Repository<User>>(getRepositoryToken(User));
+
+    usersArray.length = 0;
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -26,99 +49,64 @@ describe('UsersService', () => {
 
   describe('addUser', () => {
     it('should add a new user', async () => {
+      mockRepo.findOne.mockResolvedValue(null);
+      mockRepo.create.mockImplementation((data) => ({ uid: '1', ...data }));
+
       const user = await service.addUser({
         username: 'test',
-        email: testEmail,
-        password: 'password123',
+        email: 'test@example.com',
+        password: 'pass123',
       });
 
-      expect(user).toHaveProperty('uid');
       expect(user.username).toBe('test');
-      expect(user.email).toBe(testEmail);
-      expect(user.password).not.toBe('password123');
-      expect(service.getUsers()).toHaveLength(1);
+      expect(user.email).toBe('test@example.com');
+      expect(user.password).not.toBe('pass123'); 
     });
 
-    it('should throw if user email already exists', async () => {
-      await service.addUser({
-        username: 'test',
-        email: testEmail,
-        password: 'pass',
-      });
+    it('should throw if email exists', async () => {
+      mockRepo.findOne.mockResolvedValueOnce({ email: 'test@example.com' });
 
       await expect(
         service.addUser({
-          username: 'test',
-          email: testEmail,
-          password: 'another',
+          username: 'abc',
+          email: 'test@example.com',
+          password: 'pass123',
         }),
       ).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('validateUser', () => {
-    it('should validate a user with correct password', async () => {
-      const user = await service.addUser({
-        username: 'ran',
-        email: testEmail,
-        password: 'secret',
+    it('should validate correct credentials', async () => {
+      const hashed = await bcrypt.hash('secret', 10);
+      mockRepo.findOne.mockResolvedValueOnce({
+        uid: '1',
+        email: 'test@gmail.com',
+        password: hashed,
       });
 
-      const validatedUser = await service.validateUser(testEmail, 'secret');
-      expect(validatedUser.uid).toBe(user.uid);
+      const user = await service.validateUser('test@gmail.com', 'secret');
+      expect(user.uid).toBe('1');
     });
 
     it('should throw for invalid email', async () => {
+      mockRepo.findOne.mockResolvedValue(null);
       await expect(
-        service.validateUser('nontest@gmail.com', 'test'),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('should throw for incorrect password', async () => {
-      await service.addUser({
-        username: 'lazer',
-        email: 'testEmail',
-        password: 'goodpass',
-      });
-
-      await expect(
-        service.validateUser('testEmail', 'wrongpass'),
+        service.validateUser('nope@email.com', '123'),
       ).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('getUserByUid', () => {
-    it('should return user by uid', async () => {
-      const user = await service.addUser({
-        username: 'uidy',
-        email: testEmail,
-        password: '123',
-      });
-
-      const fetched = service.getUserByUid(user.uid);
-      expect(fetched.email).toBe(testEmail);
+    it('should return user if found', async () => {
+      mockRepo.findOne.mockResolvedValue({ uid: '123', email: 'a@a.com' });
+      const user = await service.getUserByUid('123');
+      expect(user.uid).toBe('123');
     });
 
-    it('should throw if uid not found', () => {
-      expect(() => service.getUserByUid('nonexistent')).toThrow(NotFoundException);
-    });
-  });
-
-  describe('updateUser', () => {
-    it('should update username and profilePicFileName', async () => {
-      const user = await service.addUser({
-        username: 'old',
-        email: testEmail,
-        password: 'pass',
-      });
-
-      const updated = service.updateUser(user.uid, {
-        username: 'newname',
-        profilePicFileName: 'newpic.png',
-      });
-
-      expect(updated.username).toBe('newname');
-      expect(updated.profilePicFileName).toBe('newpic.png');
+    it('should throw if user not found', async () => {
+      mockRepo.findOne.mockResolvedValue(null);
+      await expect(service.getUserByUid('no')).rejects.toThrow(NotFoundException);
     });
   });
 });

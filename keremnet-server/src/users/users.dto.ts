@@ -21,11 +21,14 @@ export class CreateUserDto {
   password: string;
 
 
+  @IsOptional()
+  @IsString()
+  profilePicFileName?: string;
 }
 
 export class LoginUserDto {
   @IsEmail()
-  @MaxLength(20)
+  @MaxLength(40)  
   email: string;
 
   @IsStrongPassword({
@@ -46,6 +49,5 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(20)
   profilePicFileName?: string;
 }
